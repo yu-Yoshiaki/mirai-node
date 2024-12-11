@@ -85,7 +85,7 @@ export const generateMandalaNode = (
   label: string,
   parentId?: string,
   position: Position = { x: 0, y: 0 },
-  depth: number = 1
+  isBaseGrid: boolean = false
 ): MandalaNode => {
   const id = `mandala-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   const elements = generateMandalaElements(label);
@@ -95,30 +95,34 @@ export const generateMandalaNode = (
     label,
     parentId,
     position,
-    depth,
+    isBaseGrid,
     children: elements.map((element) => ({
       id: `mandala-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       label: element,
       parentId: id,
-      depth: depth + 1,
     })),
   };
 };
 
-// 指定されたノードの深さを取得する関数
-export const getNodeDepth = (
+// 指定されたノードが基準グリッドから展開可能かどうかを判定する関数
+export const canExpandFromBase = (
   node: MandalaNode,
   nodes: MandalaNode[]
-): number => {
-  let depth = 1;
-  let currentNode = node;
+): boolean => {
+  // 基準グリッドの場合は展開可能
+  if (node.isBaseGrid) return true;
 
-  while (currentNode.parentId) {
-    depth++;
-    currentNode =
-      nodes.find((n) => n.id === currentNode.parentId) || currentNode;
-    if (depth > 3) break; // 無限ループ防止
-  }
+  // 基準グリッドの子要素の場合のみ展開可能
+  const baseGrid = nodes.find((n) => n.isBaseGrid);
+  return baseGrid?.id === node.parentId;
+};
 
-  return depth;
+// 指定された位置に既にグリッドが存在するかどうかを判定する関数
+export const isPositionOccupied = (
+  position: Position,
+  nodes: MandalaNode[]
+): boolean => {
+  return nodes.some(
+    (node) => node.position?.x === position.x && node.position?.y === position.y
+  );
 };

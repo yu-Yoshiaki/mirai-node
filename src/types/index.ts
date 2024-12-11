@@ -26,7 +26,7 @@ export interface MandalaNode {
   label: string;
   parentId?: string;
   position?: Position;
-  depth: number; // 追加：グリッドの深さを追跡
+  isBaseGrid?: boolean; // 基準となる中央グリッドかどうか
   children?: MandalaNode[];
 }
 

@@ -5,11 +5,14 @@ import {
   createNode,
   calculateSuggestionPosition,
 } from "../utils/suggestions";
-import { generateMandalaNode, getNodeDepth } from "../utils/mandala";
+import {
+  generateMandalaNode,
+  canExpandFromBase,
+  isPositionOccupied,
+} from "../utils/mandala";
 
 const FIRST_NODE_ID = "first-node";
 const STORAGE_KEY = "flow-data";
-const MAX_DEPTH = 3; // 最大深さを3に制限（9x9まで）
 
 const initialNode: Node = {
   id: FIRST_NODE_ID,
@@ -53,7 +56,12 @@ export const useFlowStore = create<FlowState>((set, get) => ({
     set((state) => {
       // 最初のノードの場合
       if (state.mandalaNodes.length === 0) {
-        const newNode = generateMandalaNode(label, parentId, { x: 0, y: 0 }, 1);
+        const newNode = generateMandalaNode(
+          label,
+          parentId,
+          { x: 0, y: 0 },
+          true
+        );
         return {
           mandalaNodes: [newNode],
           currentMandalaId: newNode.id,
@@ -66,10 +74,15 @@ export const useFlowStore = create<FlowState>((set, get) => ({
       );
       if (!parentNode) return state;
 
-      // 深さをチェック
-      const depth = getNodeDepth(parentNode, state.mandalaNodes);
-      if (depth >= MAX_DEPTH) {
-        console.warn("Maximum depth reached");
+      // 展開可能かどうかをチェック
+      if (!canExpandFromBase(parentNode, state.mandalaNodes)) {
+        console.warn("Cannot expand from this node");
+        return state;
+      }
+
+      // 指定された位置に既にグリッドが存在するかチェック
+      if (position && isPositionOccupied(position, state.mandalaNodes)) {
+        console.warn("Position is already occupied");
         return state;
       }
 
@@ -78,7 +91,7 @@ export const useFlowStore = create<FlowState>((set, get) => ({
         label,
         parentId,
         position || { x: 0, y: 0 },
-        depth + 1
+        false
       );
 
       return {

@@ -1,15 +1,18 @@
 import React, { useRef, useState } from 'react';
 import { useFlowStore } from '../store/useFlowStore';
 import { MandalaNode } from '../types';
-import { getNodeDepth } from '../utils/mandala';
+import { canExpandFromBase, isPositionOccupied } from '../utils/mandala';
 
-const MAX_DEPTH = 3; // 最大深さを3に制限（9x9まで）
+// 定数定義
+const CELL_SIZE = 80; // 1マスのサイズ
+const GRID_SIZE = CELL_SIZE * 3; // 3x3グリッド全体のサイズ
+const INITIAL_SCALE = 0.8; // 初期スケール
 
 export const MandalaChart: React.FC = () => {
   const mandalaNodes = useFlowStore((state) => state.mandalaNodes);
   const generateMandalaChart = useFlowStore((state) => state.generateMandalaChart);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(0.8); // 初期スケールを0.8に設定
+  const [scale, setScale] = useState(INITIAL_SCALE);
 
   // マウスホイールでの拡大縮小
   const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
@@ -21,27 +24,28 @@ export const MandalaChart: React.FC = () => {
   const handleElementClick = (element: MandalaNode, index: number, parentNode: MandalaNode) => {
     if (!element || index === 4) return;
 
-    // 深さをチェック
-    const depth = getNodeDepth(parentNode, mandalaNodes);
-    if (depth >= MAX_DEPTH) {
-      console.warn('Maximum depth reached');
-      return;
-    }
-
     // クリックされたマスの位置に基づいて新しい位置を計算
     const row = Math.floor(index / 3);
     const col = index % 3;
-    const cellSize = 80; // 1マスのサイズ
-    const gridSize = cellSize * 3; // 3x3グリッド全体のサイズ
 
     const baseX = parentNode.position?.x || 0;
     const baseY = parentNode.position?.y || 0;
 
     // 新しい位置を計算（グリッドをピッタリくっつける）
     const newPosition = {
-      x: baseX + ((col - 1) * gridSize),
-      y: baseY + ((row - 1) * gridSize)
+      x: baseX + ((col - 1) * GRID_SIZE),
+      y: baseY + ((row - 1) * GRID_SIZE)
     };
+
+    // 展開可能かどうかをチェック
+    if (!canExpandFromBase(parentNode, mandalaNodes)) {
+      return;
+    }
+
+    // 指定された位置に既にグリッドが存在するかチェック
+    if (isPositionOccupied(newPosition, mandalaNodes)) {
+      return;
+    }
 
     generateMandalaChart(element.label, element.parentId, newPosition);
   };
@@ -68,9 +72,8 @@ export const MandalaChart: React.FC = () => {
       marginTop: '-120px',  // グリッドの半分の高さ
     };
 
-    // 深さに基づいてクリック可能かどうかを判定
-    const depth = getNodeDepth(node, mandalaNodes);
-    const isMaxDepth = depth >= MAX_DEPTH;
+    // 展開可能かどうかを判定
+    const canExpand = canExpandFromBase(node, mandalaNodes);
 
     return (
       <div
@@ -80,18 +83,23 @@ export const MandalaChart: React.FC = () => {
       >
         {gridElements.map((element, index) => {
           const isCenter = index === 4;
+          const newPosition = element && !isCenter ? {
+            x: position.x + ((index % 3 - 1) * GRID_SIZE),
+            y: position.y + (Math.floor(index / 3) - 1) * GRID_SIZE
+          } : null;
+          const isOccupied = newPosition ? isPositionOccupied(newPosition, mandalaNodes) : false;
 
           return (
             <div
               key={`${node.id}-${index}`}
-              onClick={() => element && !isCenter && !isMaxDepth && handleElementClick(element, index, node)}
+              onClick={() => element && !isCenter && canExpand && !isOccupied && handleElementClick(element, index, node)}
               className={`
                 w-[80px] h-[80px] flex items-center justify-center text-white text-center p-2
                 ${isCenter ? 'bg-blue-800' : 'bg-gray-800'}
-                ${!isCenter && !isMaxDepth ? 'hover:bg-gray-700 cursor-pointer' : ''}
+                ${!isCenter && canExpand && !isOccupied ? 'hover:bg-gray-700 cursor-pointer' : ''}
                 transition-colors duration-200 text-xs border border-gray-900
               `}
-              title={isMaxDepth ? '最大深さに達しました' : ''}
+              title={!canExpand ? '展開できません' : isOccupied ? '既に展開済みです' : ''}
             >
               {element?.label || '...'}
             </div>
