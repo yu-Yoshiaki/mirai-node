@@ -1,25 +1,16 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef } from 'react';
 import { useFlowStore } from '../store/useFlowStore';
 import { MandalaNode } from '../types';
 import { isPositionOccupied } from '../utils/mandala';
 
 // 定数定義
-const CELL_SIZE = 80; // 1マスのサイズ
+const CELL_SIZE = 60; // 1マスのサイズを小さく調整
 const GRID_SIZE = CELL_SIZE * 3; // 3x3グリッド全体のサイズ
-const INITIAL_SCALE = 0.8; // 初期スケール
 
 export const MandalaChart: React.FC = () => {
   const mandalaNodes = useFlowStore((state) => state.mandalaNodes);
   const generateMandalaChart = useFlowStore((state) => state.generateMandalaChart);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(INITIAL_SCALE);
-
-  // マウスホイールでの拡大縮小
-  const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    const delta = e.deltaY > 0 ? -0.1 : 0.1;
-    setScale(prev => Math.min(Math.max(0.3, prev + delta), 2));
-  };
 
   const handleElementClick = (element: MandalaNode, index: number, parentNode: MandalaNode) => {
     if (!element || index === 4) return;
@@ -64,8 +55,8 @@ export const MandalaChart: React.FC = () => {
       position: 'absolute' as const,
       left: '50%',
       top: '50%',
-      marginLeft: '-120px', // グリッドの半分の幅
-      marginTop: '-120px',  // グリッドの半分の高さ
+      marginLeft: `-${GRID_SIZE / 2}px`,
+      marginTop: `-${GRID_SIZE / 2}px`,
     };
 
     return (
@@ -88,7 +79,7 @@ export const MandalaChart: React.FC = () => {
               key={`${node.id}-${index}`}
               onClick={() => element && canClick && handleElementClick(element, index, node)}
               className={`
-                w-[80px] h-[80px] flex items-center justify-center text-white text-center p-2
+                w-[60px] h-[60px] flex items-center justify-center text-white text-center p-2
                 ${isCenter ? 'bg-blue-800' : 'bg-gray-800'}
                 ${canClick ? 'hover:bg-gray-700 cursor-pointer' : ''}
                 transition-colors duration-200 text-xs border border-gray-900
@@ -114,7 +105,6 @@ export const MandalaChart: React.FC = () => {
   return (
     <div 
       ref={containerRef}
-      onWheel={handleWheel}
       className="w-full h-full relative bg-black overflow-auto"
       style={{ height: 'calc(100vh - 80px)' }}
     >
@@ -122,19 +112,14 @@ export const MandalaChart: React.FC = () => {
         className="absolute inset-0 flex items-center justify-center"
       >
         <div 
-          className="relative origin-center"
+          className="relative"
           style={{ 
-            transform: `scale(${scale})`,
-            transition: 'transform 0.1s ease-out',
-            width: '3000px',
-            height: '3000px'
+            width: '900px',
+            height: '900px'
           }}
         >
           {mandalaNodes.map((chart) => renderGrid(chart))}
         </div>
-      </div>
-      <div className="absolute bottom-4 right-4 text-white text-sm bg-gray-800 px-3 py-1 rounded-full opacity-80">
-        {Math.round(scale * 100)}%
       </div>
     </div>
   );
