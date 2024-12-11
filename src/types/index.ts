@@ -1,17 +1,32 @@
-export interface Node {
+import { SimulationNodeDatum } from "d3";
+
+export interface Node extends SimulationNodeDatum {
   id: string;
-  type: 'default';
+  type: "default";
   position: { x: number; y: number };
   data: {
     label: string;
-    nodeType: 'user' | 'suggestion';
+    nodeType: "user" | "suggestion";
   };
+  // d3.js simulation properties
+  fx?: number | null;
+  fy?: number | null;
+  x?: number;
+  y?: number;
+  vx?: number;
+  vy?: number;
+  index?: number;
 }
 
 export interface Edge {
   id: string;
-  source: string;
-  target: string;
+  source: string | Node;
+  target: string | Node;
+}
+
+export interface SimulationEdge extends Edge {
+  source: Node;
+  target: Node;
 }
 
 export interface FlowState {

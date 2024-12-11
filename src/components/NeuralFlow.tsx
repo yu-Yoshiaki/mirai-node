@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import * as d3 from 'd3';
-import { Node, Edge } from '../types';
+import { Node, Edge, SimulationEdge } from '../types';
 import { createGradients } from '../utils/d3/gradients';
 import { createSimulation } from '../utils/d3/simulation';
 import { createDragHandlers } from '../utils/d3/drag';
@@ -14,7 +14,6 @@ interface NeuralFlowProps {
 
 export const NeuralFlow: React.FC<NeuralFlowProps> = ({ nodes, edges, onNodeClick }) => {
   const svgRef = useRef<SVGSVGElement>(null);
-  const containerRef = useRef<SVGGElement>(null);
   const zoomRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown>>();
   const transformRef = useRef<d3.ZoomTransform>();
 
@@ -39,8 +38,7 @@ export const NeuralFlow: React.FC<NeuralFlowProps> = ({ nodes, edges, onNodeClic
     zoomRef.current = zoom;
     svg.call(zoom);
     
-    const container = svg.append('g')
-      .attr('ref', containerRef);
+    const container = svg.append('g');
 
     const defs = svg.append('defs');
     createGradients(defs);
@@ -55,8 +53,8 @@ export const NeuralFlow: React.FC<NeuralFlowProps> = ({ nodes, edges, onNodeClic
 
     // Create ethereal connection lines with pulsing effect
     const links = container.append('g')
-      .selectAll('path')
-      .data(edges)
+      .selectAll<SVGPathElement, SimulationEdge>('path')
+      .data(edges as SimulationEdge[])
       .join('path')
       .attr('class', 'link')
       .attr('stroke', 'url(#edgeGradient)')
@@ -67,22 +65,22 @@ export const NeuralFlow: React.FC<NeuralFlowProps> = ({ nodes, edges, onNodeClic
     const { dragstarted, dragged, dragended } = createDragHandlers(simulation);
 
     const nodeGroups = container.append('g')
-      .selectAll('g')
+      .selectAll<SVGGElement, Node>('g')
       .data(nodes)
       .join('g')
       .attr('class', 'node')
-      .call(d3.drag<any, any>()
+      .call(d3.drag<SVGGElement, Node>()
         .on('start', dragstarted)
         .on('drag', dragged)
         .on('end', dragended));
 
     // Add text background for better readability
     nodeGroups.append('text')
-      .text((d: any) => d.data.label)
+      .text((d: Node) => d.data.label)
       .attr('text-anchor', 'middle')
-      .attr('dy', (d: any) => d.id === 'first-node' ? '-55px' : '-35px')
+      .attr('dy', (d: Node) => d.id === 'first-node' ? '-55px' : '-35px')
       .attr('fill', '#E2E8F0')
-      .style('font-size', (d: any) => d.id === 'first-node' ? '18px' : '14px')
+      .style('font-size', (d: Node) => d.id === 'first-node' ? '18px' : '14px')
       .style('pointer-events', 'none')
       .style('font-weight', '500')
       .style('text-shadow', '0 0 10px rgba(0,0,0,0.8), 0 0 5px rgba(0,0,0,0.9)')
@@ -90,27 +88,32 @@ export const NeuralFlow: React.FC<NeuralFlowProps> = ({ nodes, edges, onNodeClic
 
     // Add cosmic nodes with enhanced glow
     nodeGroups.append('circle')
-      .attr('r', (d: any) => d.id === 'first-node' ? 45 : 25)
-      .attr('fill', (d: any) => d.data.nodeType === 'user' ? 'url(#userGradient)' : 'url(#suggestionGradient)')
+      .attr('r', (d: Node) => d.id === 'first-node' ? 45 : 25)
+      .attr('fill', (d: Node) => {
+        if (d.id === 'first-node') {
+          return 'url(#initialGradient)';
+        }
+        return d.data.nodeType === 'user' ? 'url(#userGradient)' : 'url(#suggestionGradient)';
+      })
       .attr('stroke', '#1A202C')
       .attr('stroke-width', 2)
       .style('cursor', 'pointer')
       .style('filter', 'url(#cosmicGlow)');
 
-    nodeGroups.on('click', (event: any, d: any) => {
+    nodeGroups.on('click', (event: MouseEvent, d: Node) => {
       event.stopPropagation();
       onNodeClick(d.id);
     });
 
     simulation.on('tick', () => {
-      links.attr('d', (d: any) => {
-        const dx = d.target.x - d.source.x;
-        const dy = d.target.y - d.source.y;
+      links.attr('d', (d: SimulationEdge) => {
+        const dx = (d.target as Node).x! - (d.source as Node).x!;
+        const dy = (d.target as Node).y! - (d.source as Node).y!;
         const dr = Math.sqrt(dx * dx + dy * dy) * 1.5;
-        return `M${d.source.x},${d.source.y}A${dr},${dr} 0 0,1 ${d.target.x},${d.target.y}`;
+        return `M${(d.source as Node).x},${(d.source as Node).y}A${dr},${dr} 0 0,1 ${(d.target as Node).x},${(d.target as Node).y}`;
       });
 
-      nodeGroups.attr('transform', (d: any) => `translate(${d.x},${d.y})`);
+      nodeGroups.attr('transform', (d: Node) => `translate(${d.x},${d.y})`);
     });
 
     const handleResize = () => {
