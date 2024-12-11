@@ -26,7 +26,7 @@ export interface MandalaNode {
   label: string;
   parentId?: string;
   position?: Position;
-  isBaseGrid?: boolean; // 基準となる中央グリッドかどうか
+  isCenter?: boolean; // 中央の3x3グリッドかどうか
   children?: MandalaNode[];
 }
 

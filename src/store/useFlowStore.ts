@@ -5,11 +5,7 @@ import {
   createNode,
   calculateSuggestionPosition,
 } from "../utils/suggestions";
-import {
-  generateMandalaNode,
-  canExpandFromBase,
-  isPositionOccupied,
-} from "../utils/mandala";
+import { generateMandalaNode, isPositionOccupied } from "../utils/mandala";
 
 const FIRST_NODE_ID = "first-node";
 const STORAGE_KEY = "flow-data";
@@ -72,13 +68,7 @@ export const useFlowStore = create<FlowState>((set, get) => ({
       const parentNode = state.mandalaNodes.find(
         (node) => node.id === parentId
       );
-      if (!parentNode) return state;
-
-      // 展開可能かどうかをチェック
-      if (!canExpandFromBase(parentNode, state.mandalaNodes)) {
-        console.warn("Cannot expand from this node");
-        return state;
-      }
+      if (!parentNode || !parentNode.isCenter) return state;
 
       // 指定された位置に既にグリッドが存在するかチェック
       if (position && isPositionOccupied(position, state.mandalaNodes)) {
@@ -86,7 +76,7 @@ export const useFlowStore = create<FlowState>((set, get) => ({
         return state;
       }
 
-      // 新しいノードを生成
+      // 新しいノードを生成（中央グリッド以外はクリック不可）
       const newNode = generateMandalaNode(
         label,
         parentId,

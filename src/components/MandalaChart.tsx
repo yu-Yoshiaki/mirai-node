@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { useFlowStore } from '../store/useFlowStore';
 import { MandalaNode } from '../types';
-import { canExpandFromBase, isPositionOccupied } from '../utils/mandala';
+import { isPositionOccupied } from '../utils/mandala';
 
 // 定数定義
 const CELL_SIZE = 80; // 1マスのサイズ
@@ -23,6 +23,7 @@ export const MandalaChart: React.FC = () => {
 
   const handleElementClick = (element: MandalaNode, index: number, parentNode: MandalaNode) => {
     if (!element || index === 4) return;
+    if (!parentNode.isCenter) return; // 中央グリッド以外はクリック不可
 
     // クリックされたマスの位置に基づいて新しい位置を計算
     const row = Math.floor(index / 3);
@@ -36,11 +37,6 @@ export const MandalaChart: React.FC = () => {
       x: baseX + ((col - 1) * GRID_SIZE),
       y: baseY + ((row - 1) * GRID_SIZE)
     };
-
-    // 展開可能かどうかをチェック
-    if (!canExpandFromBase(parentNode, mandalaNodes)) {
-      return;
-    }
 
     // 指定された位置に既にグリッドが存在するかチェック
     if (isPositionOccupied(newPosition, mandalaNodes)) {
@@ -72,9 +68,6 @@ export const MandalaChart: React.FC = () => {
       marginTop: '-120px',  // グリッドの半分の高さ
     };
 
-    // 展開可能かどうかを判定
-    const canExpand = canExpandFromBase(node, mandalaNodes);
-
     return (
       <div
         key={node.id}
@@ -88,18 +81,19 @@ export const MandalaChart: React.FC = () => {
             y: position.y + (Math.floor(index / 3) - 1) * GRID_SIZE
           } : null;
           const isOccupied = newPosition ? isPositionOccupied(newPosition, mandalaNodes) : false;
+          const canClick = node.isCenter && !isCenter && !isOccupied;
 
           return (
             <div
               key={`${node.id}-${index}`}
-              onClick={() => element && !isCenter && canExpand && !isOccupied && handleElementClick(element, index, node)}
+              onClick={() => element && canClick && handleElementClick(element, index, node)}
               className={`
                 w-[80px] h-[80px] flex items-center justify-center text-white text-center p-2
                 ${isCenter ? 'bg-blue-800' : 'bg-gray-800'}
-                ${!isCenter && canExpand && !isOccupied ? 'hover:bg-gray-700 cursor-pointer' : ''}
+                ${canClick ? 'hover:bg-gray-700 cursor-pointer' : ''}
                 transition-colors duration-200 text-xs border border-gray-900
               `}
-              title={!canExpand ? '展開できません' : isOccupied ? '既に展開済みです' : ''}
+              title={!node.isCenter ? '展開できません' : isOccupied ? '既に展開済みです' : ''}
             >
               {element?.label || '...'}
             </div>
