@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useFlowStore } from '../store/useFlowStore';
 import { MandalaNode } from '../types';
 import { calculateNewGridPosition } from '../utils/mandala';
@@ -10,20 +10,24 @@ export const MandalaChart: React.FC = () => {
   const [scale, setScale] = useState(1);
 
   // マウスホイールでの拡大縮小
-  const handleWheel = (e: WheelEvent) => {
+  const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
     e.preventDefault();
-    const delta = e.deltaY * -0.001;
-    const newScale = Math.min(Math.max(0.1, scale + delta), 2);
-    setScale(newScale);
+    
+    // より細かい制御のためにdeltaYを調整
+    const sensitivity = 0.002;
+    const delta = -e.deltaY * sensitivity;
+    
+    setScale(prevScale => {
+      // 新しいスケール値を計算（0.5から2.0の範囲）
+      const targetScale = prevScale + delta;
+      const newScale = Math.min(Math.max(0.5, targetScale), 2.0);
+      
+      // スケール値が変わらない場合は更新しない
+      if (newScale === prevScale) return prevScale;
+      
+      return Number(newScale.toFixed(2)); // 小数点2桁に制限
+    });
   };
-
-  useEffect(() => {
-    const container = containerRef.current;
-    if (container) {
-      container.addEventListener('wheel', handleWheel, { passive: false });
-      return () => container.removeEventListener('wheel', handleWheel);
-    }
-  }, [scale]);
 
   const handleElementClick = (element: MandalaNode, index: number, parentNode: MandalaNode) => {
     if (!element || index === 4) return; // 中央のマスはクリック不可
@@ -94,19 +98,26 @@ export const MandalaChart: React.FC = () => {
   return (
     <div 
       ref={containerRef}
+      onWheel={handleWheel}
       className="w-full h-full relative bg-black overflow-hidden"
       style={{ height: 'calc(100vh - 80px)' }}
     >
       <div 
         className="absolute inset-0 flex items-center justify-center"
-        style={{ 
-          transform: `scale(${scale})`,
-          transition: 'transform 0.1s ease-out'
-        }}
       >
-        <div className="relative">
+        <div 
+          className="relative origin-center"
+          style={{ 
+            transform: `scale(${scale})`,
+            transition: 'transform 0.05s linear',
+            willChange: 'transform'
+          }}
+        >
           {mandalaNodes.map((chart) => renderGrid(chart))}
         </div>
+      </div>
+      <div className="absolute bottom-4 right-4 text-white text-sm bg-gray-800 px-3 py-1 rounded-full opacity-80">
+        {Math.round(scale * 100)}%
       </div>
     </div>
   );
