@@ -5,10 +5,11 @@ import {
   createNode,
   calculateSuggestionPosition,
 } from "../utils/suggestions";
-import { generateMandalaNode } from "../utils/mandala";
+import { generateMandalaNode, getNodeDepth } from "../utils/mandala";
 
 const FIRST_NODE_ID = "first-node";
 const STORAGE_KEY = "flow-data";
+const MAX_DEPTH = 3; // 最大深さを3に制限（9x9まで）
 
 const initialNode: Node = {
   id: FIRST_NODE_ID,
@@ -20,18 +21,11 @@ const initialNode: Node = {
   },
 };
 
-// 初期モードをURLクエリパラメータから取得
-const getInitialViewMode = (): ViewMode => {
-  const params = new URLSearchParams(window.location.search);
-  const mode = params.get("mode") as ViewMode;
-  return mode === "neural" || mode === "mandala" ? mode : "neural";
-};
-
 export const useFlowStore = create<FlowState>((set, get) => ({
   nodes: [],
   edges: [],
   selectedNodeId: null,
-  viewMode: getInitialViewMode(),
+  viewMode: "neural" as ViewMode,
   mandalaNodes: [],
   currentMandalaId: null,
 
@@ -39,7 +33,7 @@ export const useFlowStore = create<FlowState>((set, get) => ({
     set({ viewMode: mode });
     if (mode === "mandala") {
       // マンダラチャートモードに切り替えた時、既存のノードをクリア
-      set({ mandalaNodes: [] });
+      set({ mandalaNodes: [], currentMandalaId: null });
     }
   },
 
@@ -57,22 +51,38 @@ export const useFlowStore = create<FlowState>((set, get) => ({
     position?: Position
   ) => {
     set((state) => {
-      const newNode = generateMandalaNode(label, parentId, position);
-
-      // 最初のノードの場合は中央に配置
+      // 最初のノードの場合
       if (state.mandalaNodes.length === 0) {
-        newNode.position = { x: 0, y: 0 };
+        const newNode = generateMandalaNode(label, parentId, { x: 0, y: 0 }, 1);
         return {
           mandalaNodes: [newNode],
           currentMandalaId: newNode.id,
         };
       }
 
-      // 既存のノードに新しいノードを追加
-      const updatedNodes = [...state.mandalaNodes, newNode];
+      // 親ノードを見つける
+      const parentNode = state.mandalaNodes.find(
+        (node) => node.id === parentId
+      );
+      if (!parentNode) return state;
+
+      // 深さをチェック
+      const depth = getNodeDepth(parentNode, state.mandalaNodes);
+      if (depth >= MAX_DEPTH) {
+        console.warn("Maximum depth reached");
+        return state;
+      }
+
+      // 新しいノードを生成
+      const newNode = generateMandalaNode(
+        label,
+        parentId,
+        position || { x: 0, y: 0 },
+        depth + 1
+      );
 
       return {
-        mandalaNodes: updatedNodes,
+        mandalaNodes: [...state.mandalaNodes, newNode],
         currentMandalaId: newNode.id,
       };
     });
@@ -88,7 +98,7 @@ export const useFlowStore = create<FlowState>((set, get) => ({
       currentMandalaId: null,
     };
 
-    set({ ...initialState, viewMode: getInitialViewMode() });
+    set({ ...initialState, viewMode: "neural" });
     localStorage.setItem(STORAGE_KEY, JSON.stringify(initialState));
   },
 

@@ -1,38 +1,48 @@
 import React, { useRef, useState } from 'react';
 import { useFlowStore } from '../store/useFlowStore';
 import { MandalaNode } from '../types';
-import { calculateNewGridPosition } from '../utils/mandala';
+import { getNodeDepth } from '../utils/mandala';
+
+const MAX_DEPTH = 3; // 最大深さを3に制限（9x9まで）
 
 export const MandalaChart: React.FC = () => {
   const mandalaNodes = useFlowStore((state) => state.mandalaNodes);
   const generateMandalaChart = useFlowStore((state) => state.generateMandalaChart);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(1);
+  const [scale, setScale] = useState(0.8); // 初期スケールを0.8に設定
 
   // マウスホイールでの拡大縮小
   const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
     e.preventDefault();
-    
-    // より細かい制御のためにdeltaYを調整
-    const sensitivity = 0.002;
-    const delta = -e.deltaY * sensitivity;
-    
-    setScale(prevScale => {
-      // 新しいスケール値を計算（0.5から2.0の範囲）
-      const targetScale = prevScale + delta;
-      const newScale = Math.min(Math.max(0.5, targetScale), 2.0);
-      
-      // スケール値が変わらない場合は更新しない
-      if (newScale === prevScale) return prevScale;
-      
-      return Number(newScale.toFixed(2)); // 小数点2桁に制限
-    });
+    const delta = e.deltaY > 0 ? -0.1 : 0.1;
+    setScale(prev => Math.min(Math.max(0.3, prev + delta), 2));
   };
 
   const handleElementClick = (element: MandalaNode, index: number, parentNode: MandalaNode) => {
-    if (!element || index === 4) return; // 中央のマスはクリック不可
+    if (!element || index === 4) return;
 
-    const newPosition = calculateNewGridPosition(index, parentNode.position);
+    // 深さをチェック
+    const depth = getNodeDepth(parentNode, mandalaNodes);
+    if (depth >= MAX_DEPTH) {
+      console.warn('Maximum depth reached');
+      return;
+    }
+
+    // クリックされたマスの位置に基づいて新しい位置を計算
+    const row = Math.floor(index / 3);
+    const col = index % 3;
+    const cellSize = 80; // 1マスのサイズ
+    const gridSize = cellSize * 3; // 3x3グリッド全体のサイズ
+
+    const baseX = parentNode.position?.x || 0;
+    const baseY = parentNode.position?.y || 0;
+
+    // 新しい位置を計算（グリッドをピッタリくっつける）
+    const newPosition = {
+      x: baseX + ((col - 1) * gridSize),
+      y: baseY + ((row - 1) * gridSize)
+    };
+
     generateMandalaChart(element.label, element.parentId, newPosition);
   };
 
@@ -54,16 +64,18 @@ export const MandalaChart: React.FC = () => {
       position: 'absolute' as const,
       left: '50%',
       top: '50%',
-      marginLeft: '-200px', // グリッドの半分の幅
-      marginTop: '-200px',  // グリッドの半分の高さ
-      width: '400px',       // グリッドの全体幅
-      height: '400px',      // グリッドの全体高さ
+      marginLeft: '-120px', // グリッドの半分の幅
+      marginTop: '-120px',  // グリッドの半分の高さ
     };
+
+    // 深さに基づいてクリック可能かどうかを判定
+    const depth = getNodeDepth(node, mandalaNodes);
+    const isMaxDepth = depth >= MAX_DEPTH;
 
     return (
       <div
         key={node.id}
-        className="grid grid-cols-3 gap-4 bg-gray-900 p-6 rounded-lg"
+        className="grid grid-cols-3 bg-gray-900"
         style={gridStyle}
       >
         {gridElements.map((element, index) => {
@@ -72,12 +84,14 @@ export const MandalaChart: React.FC = () => {
           return (
             <div
               key={`${node.id}-${index}`}
-              onClick={() => element && !isCenter && handleElementClick(element, index, node)}
+              onClick={() => element && !isCenter && !isMaxDepth && handleElementClick(element, index, node)}
               className={`
-                aspect-square flex items-center justify-center text-white text-center p-4 rounded-lg
-                ${isCenter ? 'bg-blue-800' : 'bg-gray-800 hover:bg-gray-700 cursor-pointer'}
-                transition-colors duration-200 text-sm
+                w-[80px] h-[80px] flex items-center justify-center text-white text-center p-2
+                ${isCenter ? 'bg-blue-800' : 'bg-gray-800'}
+                ${!isCenter && !isMaxDepth ? 'hover:bg-gray-700 cursor-pointer' : ''}
+                transition-colors duration-200 text-xs border border-gray-900
               `}
+              title={isMaxDepth ? '最大深さに達しました' : ''}
             >
               {element?.label || '...'}
             </div>
@@ -99,7 +113,7 @@ export const MandalaChart: React.FC = () => {
     <div 
       ref={containerRef}
       onWheel={handleWheel}
-      className="w-full h-full relative bg-black overflow-hidden"
+      className="w-full h-full relative bg-black overflow-auto"
       style={{ height: 'calc(100vh - 80px)' }}
     >
       <div 
@@ -109,8 +123,9 @@ export const MandalaChart: React.FC = () => {
           className="relative origin-center"
           style={{ 
             transform: `scale(${scale})`,
-            transition: 'transform 0.05s linear',
-            willChange: 'transform'
+            transition: 'transform 0.1s ease-out',
+            width: '3000px',
+            height: '3000px'
           }}
         >
           {mandalaNodes.map((chart) => renderGrid(chart))}
