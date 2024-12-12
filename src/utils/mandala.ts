@@ -22,10 +22,9 @@ export const calculateNewGridPosition = (
   basePosition: Position = { x: 0, y: 0 }
 ): Position => {
   const { x: relX, y: relY } = calculateGridPosition(clickedIndex);
-  const cellSize = 80; // 1マスのサイズ
-  const gridSize = cellSize * 3; // 3x3グリッド全体のサイズ
+  const cellSize = 100; // グリッド間のスペースを考慮して調整
+  const gridSize = cellSize * 3;
 
-  // クリックされたマスの方向にピッタリくっつけて配置
   return {
     x: basePosition.x + relX * gridSize,
     y: basePosition.y + relY * gridSize,

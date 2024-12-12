@@ -68,3 +68,37 @@ export const generateMandalaContent = async (centerTopic: string) => {
     ];
   }
 };
+
+// 複数の要素に対して並列でマンダラチャートを生成
+export const generateSecondLevelMandala = async (topics: string[]) => {
+  try {
+    // 並列処理で各トピックの8要素を生成
+    const promises = topics.map((topic) => generateMandalaContent(topic));
+    const results = await Promise.all(promises);
+
+    // 結果を整形
+    const secondLevelMap: { [key: string]: string[] } = {};
+    topics.forEach((topic, index) => {
+      secondLevelMap[topic] = results[index];
+    });
+
+    return secondLevelMap;
+  } catch (error) {
+    console.error("Failed to generate second level mandala:", error);
+    // エラー時は各トピックに対してフォールバックを返す
+    const fallbackMap: { [key: string]: string[] } = {};
+    topics.forEach((topic) => {
+      fallbackMap[topic] = [
+        `${topic}の計画`,
+        `${topic}の準備`,
+        `${topic}の実践`,
+        `${topic}の評価`,
+        `${topic}の改善`,
+        `${topic}の継続`,
+        `${topic}の発展`,
+        `${topic}の共有`,
+      ];
+    });
+    return fallbackMap;
+  }
+};
