@@ -11,12 +11,20 @@ OpenAIのAPIを活用して、マンダラチャートを自動生成・編集�
 - 生成された内容の編集が可能
 - 日本語・英語両対応
 
-### 2. 保存・共有機能
+### 2. ニューロン型マインドマップ機能
+- マンダラチャートの各要素を自由に配置可能なニューロン型表示
+- ドラッグ＆ドロップによる要素の移動
+- 要素間の関連性を線で表現
+- 関連性の強さを線の太さで表現
+- ズーム機能とパン機能
+- アニメーションによるスムーズな表示切替
+
+### 3. 保存・共有機能
 - 作成したマンダラチャートをローカルストレージに保存
 - マンダラチャートのエクスポート機能（JSON形式）
 - マンダラチャートのインポート機能
 
-### 3. UI/UX
+### 4. UI/UX
 - 3×3のグリッドレイアウトでマンダラチャートを表示
 - レスポンシブデザイン対応
 - ダークモード/ライトモード切り替え
@@ -27,7 +35,8 @@ OpenAIのAPIを活用して、マンダラチャートを自動生成・編集�
 src/
 ├── components/
 │ ├── MandalaChart.tsx # マンダラチャートのメインコンポーネント
-│ └── MandalaTest.tsx # テスト用コンポーネント
+│ ├── NeuronMap.tsx    # ニューロン型マインドマップコンポーネント
+│ └── MandalaTest.tsx  # テスト用コンポーネント
 ├── store/
 │ └── useMandalaStore.ts # Zustandによる状態管理
 ├── utils/
@@ -49,6 +58,8 @@ src/
 - OpenAI API (GPT-4)
 - React Icons
 - React Router DOM
+- React Flow (ニューロン型マインドマップの実装)
+- D3.js (グラフ描画)
 
 ### 開発環境
 - Vite
@@ -69,6 +80,11 @@ interface MandalaNode {
 id: string;
 content: string;
 children?: MandalaNode[];
+position?: { x: number; y: number }; // ニューロン型表示用の座標
+connections?: Array<{
+targetId: string;
+strength: number; // 関連性の強さ（0-1）
+}>;
 }
 interface MandalaChart {
 id: string;
