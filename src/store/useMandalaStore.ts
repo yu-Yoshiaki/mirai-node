@@ -68,48 +68,44 @@ export const useMandalaStore = create<MandalaState>((set) => ({
 
   generateMandalaChart: (label: string, parentId?: string) => {
     set((state) => {
-      if (state.mandalaNodes.length === 0) {
-        const centerNode = generateMandalaNode(
-          label,
-          parentId,
-          { x: 0, y: 0 },
-          true
-        );
+      const centerNode = generateMandalaNode(
+        label,
+        parentId,
+        { x: 0, y: 0 },
+        true
+      );
 
-        const positions = [
-          { x: -GRID_SIZE, y: -GRID_SIZE }, // 左上
-          { x: 0, y: -GRID_SIZE }, // 上
-          { x: GRID_SIZE, y: -GRID_SIZE }, // 右上
-          { x: -GRID_SIZE, y: 0 }, // 左
-          { x: GRID_SIZE, y: 0 }, // 右
-          { x: -GRID_SIZE, y: GRID_SIZE }, // 左下
-          { x: 0, y: GRID_SIZE }, // 下
-          { x: GRID_SIZE, y: GRID_SIZE }, // 右下
-        ];
+      const positions = [
+        { x: -GRID_SIZE, y: -GRID_SIZE }, // 左上
+        { x: 0, y: -GRID_SIZE }, // 上
+        { x: GRID_SIZE, y: -GRID_SIZE }, // 右上
+        { x: -GRID_SIZE, y: 0 }, // 左
+        { x: GRID_SIZE, y: 0 }, // 右
+        { x: -GRID_SIZE, y: GRID_SIZE }, // 左下
+        { x: 0, y: GRID_SIZE }, // 下
+        { x: GRID_SIZE, y: GRID_SIZE }, // 右下
+      ];
 
-        const surroundingNodes =
-          centerNode.children
-            ?.map((child, index) => {
-              if (!child || index >= positions.length) return null;
+      const surroundingNodes =
+        centerNode.children
+          ?.map((child, index) => {
+            if (!child || index >= positions.length) return null;
 
-              return generateMandalaNode(
-                child.label,
-                centerNode.id,
-                positions[index],
-                false
-              );
-            })
-            .filter((node): node is MandalaNode => node !== null) || [];
+            return generateMandalaNode(
+              child.label,
+              centerNode.id,
+              positions[index],
+              false
+            );
+          })
+          .filter((node): node is MandalaNode => node !== null) || [];
 
-        const newState = {
-          mandalaNodes: [centerNode, ...surroundingNodes],
-          currentMandalaId: centerNode.id,
-        };
-        saveToLocalStorage(newState);
-        return newState;
-      }
-
-      return state;
+      const newState = {
+        mandalaNodes: [...state.mandalaNodes, centerNode, ...surroundingNodes],
+        currentMandalaId: centerNode.id,
+      };
+      saveToLocalStorage(newState);
+      return newState;
     });
   },
 }));

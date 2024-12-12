@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { MandalaNode } from '../types';
 import { useMandalaStore } from '../store/useMandalaStore';
 
@@ -8,7 +8,35 @@ const GRID_SIZE = CELL_SIZE * 3; // 3x3グリッド全体のサイズ
 
 export const MandalaChart: React.FC = () => {
   const mandalaNodes = useMandalaStore((state) => state.mandalaNodes);
+  const currentMandalaId = useMandalaStore((state) => state.currentMandalaId);
+  const setCurrentMandalaId = useMandalaStore((state) => state.setCurrentMandalaId);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // 最初のマンダラチャートが表示されたときに自動的に選択
+  useEffect(() => {
+    if (mandalaNodes.length > 0 && !currentMandalaId) {
+      const firstCenterNode = mandalaNodes.find(node => node.isCenter);
+      if (firstCenterNode) {
+        setCurrentMandalaId(firstCenterNode.id);
+      }
+    }
+  }, [mandalaNodes, currentMandalaId, setCurrentMandalaId]);
+
+  const currentMandala = mandalaNodes.find(node => 
+    node.isCenter && node.id === currentMandalaId
+  );
+
+  if (!currentMandala) {
+    return (
+      <div className="w-full h-full flex items-center justify-center text-white">
+        <p>目標を入力してください</p>
+      </div>
+    );
+  }
+
+  const relatedNodes = mandalaNodes.filter(node => 
+    node.id === currentMandalaId || node.parentId === currentMandalaId
+  );
 
   const renderGrid = (node: MandalaNode) => {
     if (!node) return null;
@@ -57,14 +85,6 @@ export const MandalaChart: React.FC = () => {
     );
   };
 
-  if (mandalaNodes.length === 0) {
-    return (
-      <div className="w-full h-full flex items-center justify-center text-white">
-        <p>目標を入力してください</p>
-      </div>
-    );
-  }
-
   return (
     <div 
       ref={containerRef}
@@ -81,7 +101,7 @@ export const MandalaChart: React.FC = () => {
             height: '900px'
           }}
         >
-          {mandalaNodes.map((chart) => renderGrid(chart))}
+          {relatedNodes.map((chart) => renderGrid(chart))}
         </div>
       </div>
     </div>
