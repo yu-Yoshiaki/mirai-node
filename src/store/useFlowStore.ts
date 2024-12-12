@@ -1,18 +1,11 @@
 import { create } from "zustand";
-import {
-  Node,
-  Edge,
-  FlowState,
-  ViewMode,
-  Position,
-  MandalaNode,
-} from "../types";
+import { Node, Edge, ViewMode } from "../types";
 import {
   generateSuggestions,
   createNode,
   calculateSuggestionPosition,
 } from "../utils/suggestions";
-import { generateMandalaNode, isPositionOccupied } from "../utils/mandala";
+import { useMandalaStore } from "./useMandalaStore";
 
 const FIRST_NODE_ID = "first-node";
 const STORAGE_KEY = "miraiNodeData";
@@ -30,31 +23,19 @@ const initialNode: Node = {
 type StoredState = {
   nodes: Node[];
   edges: Edge[];
-  mandalaNodes: MandalaNode[];
-  currentMandalaId: string | null;
   viewMode: ViewMode;
 };
 
 const loadFromLocalStorage = (): StoredState | null => {
   try {
-    console.log("Attempting to load data from localStorage...");
     const savedData = localStorage.getItem(STORAGE_KEY);
-    console.log("Raw data from localStorage:", savedData);
-
     if (savedData) {
       const parsedData = JSON.parse(savedData);
-      console.log("Parsed data:", parsedData);
-
-      const result = {
+      return {
         nodes: parsedData.nodes || [],
         edges: parsedData.edges || [],
-        mandalaNodes: parsedData.mandalaNodes || [],
-        currentMandalaId: parsedData.currentMandalaId || null,
         viewMode: parsedData.viewMode || "neural",
       };
-
-      console.log("Processed data:", result);
-      return result;
     }
   } catch (error) {
     console.error("Failed to parse localStorage data:", error);
@@ -73,141 +54,37 @@ const saveToLocalStorage = (state: StoredState) => {
   }
 };
 
-type ExtendedFlowState = FlowState & {
+type FlowStoreState = {
+  nodes: Node[];
+  edges: Edge[];
+  selectedNodeId: string | null;
+  viewMode: ViewMode;
   initialized: boolean;
+  setViewMode: (mode: ViewMode) => void;
+  setSelectedNodeId: (id: string | null) => void;
+  initializeFlow: () => void;
+  addSuggestionFromNode: (sourceNodeId: string) => void;
+  addNode: (label: string) => void;
 };
 
-export const useFlowStore = create<ExtendedFlowState>((set, get) => ({
+export const useFlowStore = create<FlowStoreState>((set, get) => ({
   nodes: [],
   edges: [],
   selectedNodeId: null,
-  viewMode: "neural" as ViewMode,
-  mandalaNodes: [],
-  currentMandalaId: null,
+  viewMode: "neural",
   initialized: false,
 
   setViewMode: (mode: ViewMode) => {
-    const currentState = get();
-    const savedData = loadFromLocalStorage();
-
-    // 新しい状態を作成
-    let newState = { ...currentState, viewMode: mode };
-
-    if (savedData) {
-      // マンダラモードに切り替わる時
-      if (
-        mode === "mandala" &&
-        savedData.mandalaNodes.length > 0 &&
-        currentState.mandalaNodes.length === 0
-      ) {
-        console.log("Restoring mandala data from localStorage");
-        newState = {
-          ...newState,
-          mandalaNodes: savedData.mandalaNodes,
-          currentMandalaId: savedData.currentMandalaId ?? null,
-        };
-      }
-      // ニューラルモードに切り替わる時
-      else if (
-        mode === "neural" &&
-        savedData.nodes.length > 0 &&
-        currentState.nodes.length === 0
-      ) {
-        console.log("Restoring neural data from localStorage");
-        newState = {
-          ...newState,
-          nodes: savedData.nodes,
-          edges: savedData.edges ?? [],
-        };
-      }
-    }
-
-    console.log("Setting new state:", newState);
-    set(newState);
+    set({ viewMode: mode });
     saveToLocalStorage({
-      nodes: newState.nodes,
-      edges: newState.edges,
-      mandalaNodes: newState.mandalaNodes,
-      currentMandalaId: newState.currentMandalaId,
-      viewMode: newState.viewMode,
+      nodes: get().nodes,
+      edges: get().edges,
+      viewMode: mode,
     });
   },
 
   setSelectedNodeId: (id: string | null) => {
     set({ selectedNodeId: id });
-  },
-
-  setCurrentMandalaId: (id: string | null) => {
-    const newState = { ...get(), currentMandalaId: id };
-    set(newState);
-    saveToLocalStorage({
-      nodes: newState.nodes,
-      edges: newState.edges,
-      mandalaNodes: newState.mandalaNodes,
-      currentMandalaId: newState.currentMandalaId,
-      viewMode: newState.viewMode,
-    });
-  },
-
-  generateMandalaChart: (
-    label: string,
-    parentId?: string,
-    position?: Position
-  ) => {
-    set((state) => {
-      if (state.mandalaNodes.length === 0) {
-        const newNode = generateMandalaNode(
-          label,
-          parentId,
-          { x: 0, y: 0 },
-          true
-        );
-        const newState = {
-          ...state,
-          mandalaNodes: [newNode],
-          currentMandalaId: newNode.id,
-        };
-        saveToLocalStorage({
-          nodes: newState.nodes,
-          edges: newState.edges,
-          mandalaNodes: newState.mandalaNodes,
-          currentMandalaId: newState.currentMandalaId,
-          viewMode: newState.viewMode,
-        });
-        return newState;
-      }
-
-      const parentNode = state.mandalaNodes.find(
-        (node) => node.id === parentId
-      );
-      if (!parentNode || !parentNode.isCenter) return state;
-
-      if (position && isPositionOccupied(position, state.mandalaNodes)) {
-        console.warn("Position is already occupied");
-        return state;
-      }
-
-      const newNode = generateMandalaNode(
-        label,
-        parentId,
-        position || { x: 0, y: 0 },
-        false
-      );
-
-      const newState = {
-        ...state,
-        mandalaNodes: [...state.mandalaNodes, newNode],
-        currentMandalaId: newNode.id,
-      };
-      saveToLocalStorage({
-        nodes: newState.nodes,
-        edges: newState.edges,
-        mandalaNodes: newState.mandalaNodes,
-        currentMandalaId: newState.currentMandalaId,
-        viewMode: newState.viewMode,
-      });
-      return newState;
-    });
   },
 
   initializeFlow: () => {
@@ -225,20 +102,20 @@ export const useFlowStore = create<ExtendedFlowState>((set, get) => ({
       set({
         nodes: savedData.nodes,
         edges: savedData.edges,
-        mandalaNodes: savedData.mandalaNodes,
-        currentMandalaId: savedData.currentMandalaId,
         viewMode: savedData.viewMode,
         initialized: true,
       });
-      saveToLocalStorage(savedData);
+      saveToLocalStorage({
+        nodes: savedData.nodes,
+        edges: savedData.edges,
+        viewMode: savedData.viewMode,
+      });
     } else {
       console.log("No saved data found, using initial state");
       // 保存されているデータがない場合は、初期状態を設定
       const initialState = {
         nodes: [initialNode],
         edges: [],
-        mandalaNodes: [],
-        currentMandalaId: null,
         viewMode: "neural" as ViewMode,
       };
       set({ ...initialState, initialized: true });
@@ -288,8 +165,6 @@ export const useFlowStore = create<ExtendedFlowState>((set, get) => ({
       saveToLocalStorage({
         nodes: newState.nodes,
         edges: newState.edges,
-        mandalaNodes: newState.mandalaNodes,
-        currentMandalaId: newState.currentMandalaId,
         viewMode: newState.viewMode,
       });
       return newState;
@@ -299,7 +174,7 @@ export const useFlowStore = create<ExtendedFlowState>((set, get) => ({
   addNode: (label: string) => {
     const state = get();
     if (state.viewMode === "mandala") {
-      state.generateMandalaChart(label);
+      useMandalaStore.getState().generateMandalaChart(label);
       return;
     }
 
@@ -368,8 +243,6 @@ export const useFlowStore = create<ExtendedFlowState>((set, get) => ({
       saveToLocalStorage({
         nodes: newState.nodes,
         edges: newState.edges,
-        mandalaNodes: newState.mandalaNodes,
-        currentMandalaId: newState.currentMandalaId,
         viewMode: newState.viewMode,
       });
       return newState;

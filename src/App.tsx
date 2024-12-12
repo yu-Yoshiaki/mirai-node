@@ -1,15 +1,18 @@
-import React, { useEffect } from 'react';
+import  { useEffect } from 'react';
 import { Flow } from './components/Flow';
 import { InputForm } from './components/InputForm';
 import { MandalaChart } from './components/MandalaChart';
 import { Sidebar } from './components/Sidebar';
 import { useFlowStore } from './store/useFlowStore';
+import { useMandalaStore } from './store/useMandalaStore';
 import { ViewMode } from './types';
 
 function App() {
   const addNode = useFlowStore((state) => state.addNode);
   const viewMode = useFlowStore((state) => state.viewMode);
   const setViewMode = useFlowStore((state) => state.setViewMode);
+  const initializeFlow = useFlowStore((state) => state.initializeFlow);
+  const initializeMandala = useMandalaStore((state) => state.initializeMandala);
 
   // URLクエリパラメータの監視
   useEffect(() => {
@@ -31,6 +34,11 @@ function App() {
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, [setViewMode]);
+
+  useEffect(() => {
+    initializeFlow();
+    initializeMandala();
+  }, [initializeFlow, initializeMandala]);
 
   return (
     <div className="flex w-full h-screen bg-black">
