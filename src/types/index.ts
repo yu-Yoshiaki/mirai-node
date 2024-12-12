@@ -1,6 +1,8 @@
+import { SimulationNodeDatum } from "d3";
+
 export type ViewMode = "neural" | "mandala";
 
-export interface Node {
+export interface Node extends SimulationNodeDatum {
   id: string;
   type: "default";
   position: { x: number; y: number };
@@ -8,12 +10,18 @@ export interface Node {
     label: string;
     nodeType: "user" | "suggestion";
   };
+  // D3.js simulation properties
+  fx?: number | null;
+  fy?: number | null;
+  vx?: number;
+  vy?: number;
+  index?: number;
 }
 
 export interface Edge {
   id: string;
-  source: string;
-  target: string;
+  source: string | Node;
+  target: string | Node;
 }
 
 export interface Position {

@@ -12,6 +12,7 @@
   "dependencies": {
     "d3": "^7.8.5",
     "lucide-react": "^0.344.0",
+    "openai": "^4.0.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "reactflow": "^11.10.4",

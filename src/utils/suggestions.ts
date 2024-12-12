@@ -1,20 +1,10 @@
 import { Node } from "../types";
+import { generateAISuggestions } from "./openai";
 
-export const generateSuggestions = (action: string): string[] => {
-  const baseTemplates = [
-    `${action}を毎日続けよう！`,
-    `${action}の回数を5回増やそう！`,
-    `${action}の質を高めてみよう！`,
-    `友達と一緒に${action}してみよう！`,
-    `${action}の記録をつけてみよう！`,
-    `${action}のやり方を工夫してみよう！`,
-    `${action}を習慣化しよう！`,
-    `${action}の目標を設定しよう！`,
-    `${action}を楽しむ方法を見つけよう！`,
-    `${action}の効果を確認しよう！`,
-  ];
-
-  return [...baseTemplates].sort(() => Math.random() - 0.5).slice(0, 5);
+export const generateSuggestions = async (
+  action: string
+): Promise<string[]> => {
+  return await generateAISuggestions(action);
 };
 
 const getNodeDistance = (node: Node): number => {
