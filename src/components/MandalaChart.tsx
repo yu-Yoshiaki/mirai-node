@@ -1,23 +1,20 @@
 import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { MandalaNode } from '../types';
 import { useMandalaStore } from '../store/useMandalaStore';
-import { generateMandalaContent } from '../utils/mandalaOpenai';
 
 // 定数定義
-const CELL_SIZE = 60; // 1マスのサイズを小さく調整
-const GRID_SIZE = CELL_SIZE * 3; // 3x3グリッド全体のサイズ
+const CELL_SIZE = 90;
+const GRID_SIZE = CELL_SIZE * 9;
 
 export const MandalaChart: React.FC = () => {
   const mandalaNodes = useMandalaStore((state) => state.mandalaNodes);
   const currentMandalaId = useMandalaStore((state) => state.currentMandalaId);
   const setCurrentMandalaId = useMandalaStore((state) => state.setCurrentMandalaId);
+  const generateMandalaChart = useMandalaStore((state) => state.generateMandalaChart);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const addNode = useMandalaStore((state) => state.addNode);
-  const updateNode = useMandalaStore((state) => state.updateNode);
   const [newTopic, setNewTopic] = useState('');
 
-  // 最初のマンダラチャートが表示されたときに自動的に選択
   useEffect(() => {
     if (mandalaNodes.length > 0 && !currentMandalaId) {
       const firstCenterNode = mandalaNodes.find(node => node.isCenter);
@@ -27,79 +24,44 @@ export const MandalaChart: React.FC = () => {
     }
   }, [mandalaNodes, currentMandalaId, setCurrentMandalaId]);
 
-  const currentMandala = mandalaNodes.find(node => 
-    node.isCenter && node.id === currentMandalaId
+  const currentMandala = useMemo(() => 
+    mandalaNodes.find(node => node.id === currentMandalaId),
+    [mandalaNodes, currentMandalaId]
   );
 
-  const handleGenerateTopics = async () => {
-    if (!currentMandala) return;
+  // relatedNodesの取得を修正
+  const relatedNodes = useMemo(() => {
+    if (!currentMandala) return [];
     
-    setIsLoading(true);
-    try {
-      const topics = await generateMandalaContent(currentMandala.label);
-      
-      // 既存の子ノードを更新または新規作成
-      topics.forEach((topic: string, index: number) => {
-        const existingChild = currentMandala.children?.[index];
-        if (existingChild) {
-          // 既存のノードを更新
-          updateNode({
-            ...existingChild,
-            label: topic
-          });
-        } else {
-          // 新規ノードを作成
-          addNode({
-            id: `${currentMandala.id}-${index}`,
-            label: topic,
-            parentId: currentMandala.id,
-            isCenter: false,
-            children: [],
-            position: { x: 0, y: 0 }
-          });
-        }
-      });
-    } catch (error) {
-      console.error('Failed to generate topics:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    // 中心ノード
+    const centerNode = currentMandala;
+    
+    // 中心ノードに紐づく主要カテゴリーノード(8つ)
+    const mainNodes = mandalaNodes.filter(node => node.parentId === centerNode.id);
+    
+    // 9ノードを適切な順序で配置
+    const positionedNodes = [
+      mainNodes[0],
+      mainNodes[1],
+      mainNodes[2],
+      mainNodes[3],
+      centerNode,     // 中央に配置
+      mainNodes[4],
+      mainNodes[5],
+      mainNodes[6],
+      mainNodes[7],
+    ];
+    
+    return positionedNodes;
+  }, [currentMandala, mandalaNodes]);
 
   const handleCreateNewMandala = async () => {
     if (!newTopic || isLoading) return;
     
     setIsLoading(true);
     try {
-      const topics = await generateMandalaContent(newTopic);
-      
-      // 中心��ードを作成
-      const newNodeId = `mandala-${Date.now()}`;
-      const centerNode = {
-        id: newNodeId,
-        label: newTopic,
-        parentId: undefined,
-        isCenter: true,
-        children: [],
-        position: { x: 0, y: 0 }
-      };
-      
-      addNode(centerNode);
-      setCurrentMandalaId(newNodeId);
-
-      // サブトピックを追加
-      topics.forEach((topic: string, index: number) => {
-        addNode({
-          id: `${newNodeId}-${index}`,
-          label: topic,
-          parentId: newNodeId,
-          isCenter: false,
-          children: [],
-          position: { x: 0, y: 0 }
-        });
-      });
-
-      setNewTopic(''); // 入力をクリア
+      await generateMandalaChart(newTopic);
+      setNewTopic('');
     } catch (error) {
       console.error('Failed to generate mandala:', error);
     } finally {
@@ -107,26 +69,31 @@ export const MandalaChart: React.FC = () => {
     }
   };
 
-  // relatedNodesの取得を修正
-  const relatedNodes = useMemo(() => {
-    if (!currentMandala) return [];
+  const renderCell = (node: MandalaNode | undefined, index: number, parentNode?: MandalaNode) => {
+    const isCenter = index === 4;
     
-    // 中心ノードを取得
-    const centerNode = currentMandala;
-    
-    // 子ノード（8つの要素）を取得
-    const childNodes = mandalaNodes.filter(node => node.parentId === centerNode.id);
-    
-    // 中心ノードと子ノードを結合
-    return [centerNode, ...childNodes];
-  }, [currentMandala, mandalaNodes]);
+    return (
+      <div
+        key={`${parentNode?.id || 'root'}-${index}`}
+        className={`
+          w-[90px] h-[90px] flex items-center justify-center text-white text-center p-2
+          ${isCenter ? 'bg-blue-800' : 'bg-gray-800'}
+          transition-colors duration-200 text-[11px] border border-gray-900
+        `}
+        title={node?.label}
+      >
+        <span className="break-words leading-tight">
+          {node?.label || '...'}
+        </span>
+      </div>
+    );
+  };
 
-  const renderGrid = (node: MandalaNode) => {
+  const renderGrid = (node: MandalaNode | undefined, idx: number) => {
     if (!node) return null;
 
-    // 子ノードを取得（parentIdで紐付いているノードを探す）
+    // 子ノードを取得して3x3グリッドを構成
     const childNodes = mandalaNodes.filter(n => n.parentId === node.id);
-
     const gridElements = Array.from({ length: 9 }, (_, index) => {
       if (index === 4) {
         return node;
@@ -136,37 +103,27 @@ export const MandalaChart: React.FC = () => {
       }
     });
 
-    const position = node.position || { x: 0, y: 0 };
-    const gridStyle = {
-      transform: `translate(${position.x}px, ${position.y}px)`,
-      position: 'absolute' as const,
-      left: '50%',
-      top: '50%',
-      marginLeft: `-${GRID_SIZE / 2}px`,
-      marginTop: `-${GRID_SIZE / 2}px`,
-    };
+    // 行と列の位置を計算
+    const row = Math.floor(idx / 3);
+    const col = idx % 3;
+    const SUB_GRID_SIZE = CELL_SIZE * 3;
+
+    // 位置の計算
+    const top = row * SUB_GRID_SIZE;
+    const left = col * SUB_GRID_SIZE;
 
     return (
       <div
         key={node.id}
-        className="grid grid-cols-3 bg-gray-900"
-        style={gridStyle}
+        className="grid grid-cols-3 bg-gray-900 absolute"
+        style={{
+          width: `${SUB_GRID_SIZE}px`,
+          height: `${SUB_GRID_SIZE}px`,
+          top: `${top}px`,
+          left: `${left}px`,
+        }}
       >
-        {gridElements.map((element, index) => {
-          const isCenter = index === 4;
-          return (
-            <div
-              key={`${node.id}-${index}`}
-              className={`
-                w-[60px] h-[60px] flex items-center justify-center text-white text-center p-2
-                ${isCenter ? 'bg-blue-800' : 'bg-gray-800'}
-                transition-colors duration-200 text-xs border border-gray-900
-              `}
-            >
-              {element?.label || '...'}
-            </div>
-          );
-        })}
+        {gridElements.map((element, i) => renderCell(element, i, node))}
       </div>
     );
   };
@@ -190,7 +147,7 @@ export const MandalaChart: React.FC = () => {
           <button
             onClick={handleCreateNewMandala}
             disabled={isLoading || !newTopic}
-            className="px-4 py-2 bg-blue-600 rounded hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed"
+            className="px-4 py-2 bg-blue-600 rounded hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white"
           >
             {isLoading ? '生成中...' : '作成'}
           </button>
@@ -204,28 +161,22 @@ export const MandalaChart: React.FC = () => {
     <div 
       ref={containerRef}
       className="w-full h-full relative bg-black overflow-auto"
-      style={{ height: 'calc(100vh - 80px)' }}
+      style={{ 
+        height: 'calc(100vh - 80px)',
+        padding: '40px 0'
+      }}
     >
-      <div className="absolute top-4 right-4 z-10">
-        <button 
-          onClick={handleGenerateTopics}
-          disabled={isLoading || !currentMandala}
-          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400"
-        >
-          {isLoading ? '生成中...' : 'AIでアイデア生成'}
-        </button>
-      </div>
       <div 
-        className="absolute inset-0 flex items-center justify-center"
+        className="absolute inset-0 flex items-center justify-center min-h-full"
       >
         <div 
           className="relative"
           style={{ 
-            width: '900px',
-            height: '900px'
+            width: `${GRID_SIZE}px`,
+            height: `${GRID_SIZE}px`
           }}
         >
-          {relatedNodes.map((chart) => renderGrid(chart))}
+          {relatedNodes.map((node, idx) => renderGrid(node, idx))}
         </div>
       </div>
     </div>
