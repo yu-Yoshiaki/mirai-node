@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { useFlowStore } from '../store/useFlowStore';
+import { useMandalaStore } from '../store/useMandalaStore';
 import { MandalaNode } from '../types';
 import { isPositionOccupied } from '../utils/mandala';
 
@@ -8,8 +8,8 @@ const CELL_SIZE = 60; // 1マスのサイズを小さく調整
 const GRID_SIZE = CELL_SIZE * 3; // 3x3グリッド全体のサイズ
 
 export const MandalaChart: React.FC = () => {
-  const mandalaNodes = useFlowStore((state) => state.mandalaNodes);
-  const generateMandalaChart = useFlowStore((state) => state.generateMandalaChart);
+  const mandalaNodes = useMandalaStore((state) => state.mandalaNodes);
+  const generateMandalaChart = useMandalaStore((state) => state.generateMandalaChart);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const handleElementClick = (element: MandalaNode, index: number, parentNode: MandalaNode) => {
