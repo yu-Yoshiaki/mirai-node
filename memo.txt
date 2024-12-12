@@ -23,4 +23,75 @@ OpenAIのAPIを活用して、マンダラチャートを自動生成・編集�
 - ローディング表示
 - エラーハンドリング
 
-## ファイル構成 
+## ファイル構成
+src/
+├── components/
+│ ├── MandalaChart.tsx # マンダラチャートのメインコンポーネント
+│ └── MandalaTest.tsx # テスト用コンポーネント
+├── store/
+│ └── useMandalaStore.ts # Zustandによる状態管理
+├── utils/
+│ ├── mandala.ts # マンダラチャート関連のユーティリティ
+│ ├── mandalaOpenai.ts # OpenAI API連携処理
+│ ├── mandalaTest.ts # テストユーティリティ
+│ ├── openai.ts # OpenAI API基本設定
+│ └── openaiConfig.ts # OpenAI設定値
+└── App.tsx # メインアプリケーション
+
+
+## 使用技術・ライブラリ
+
+### フレームワーク・ライブラリ
+- React
+- TypeScript
+- Zustand (状態管理)
+- Chakra UI (UIコンポーネント)
+- OpenAI API (GPT-4)
+- React Icons
+- React Router DOM
+
+### 開発環境
+- Vite
+- ESLint
+- Prettier
+
+## 環境変数
+VITE_OPENAI_API_KEY= # OpenAI APIキー
+VITE_OPENAI_MODEL= # 使用するモデル名（例：gpt-4-turbo-preview）
+
+
+## データ構造
+
+### マンダラチャートの型定義
+
+typescript
+interface MandalaNode {
+id: string;
+content: string;
+children?: MandalaNode[];
+}
+interface MandalaChart {
+id: string;
+centerTheme: MandalaNode;
+createdAt: Date;
+updatedAt: Date;
+}
+
+## エラーハンドリング
+- API通信エラー
+- 入力バリデーション
+- レート制限対応
+- タイムアウト処理
+
+## 今後の拡張性
+- ユーザー認証機能
+- クラウドでの保存機能
+- 複数のAIモデル選択機能
+- テンプレート機能
+- 画像出力機能
+- コラボレーション機能
+
+## パフォーマンス要件
+- 初期ロード時間: 3秒以内
+- API応答時間: 5秒以内
+- モバイル対応（レスポンシブ）
