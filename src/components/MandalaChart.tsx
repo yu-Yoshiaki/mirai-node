@@ -1,7 +1,6 @@
 import React, { useRef } from 'react';
-import { useMandalaStore } from '../store/useMandalaStore';
 import { MandalaNode } from '../types';
-import { isPositionOccupied } from '../utils/mandala';
+import { useMandalaStore } from '../store/useMandalaStore';
 
 // 定数定義
 const CELL_SIZE = 60; // 1マスのサイズを小さく調整
@@ -9,33 +8,7 @@ const GRID_SIZE = CELL_SIZE * 3; // 3x3グリッド全体のサイズ
 
 export const MandalaChart: React.FC = () => {
   const mandalaNodes = useMandalaStore((state) => state.mandalaNodes);
-  const generateMandalaChart = useMandalaStore((state) => state.generateMandalaChart);
   const containerRef = useRef<HTMLDivElement>(null);
-
-  const handleElementClick = (element: MandalaNode, index: number, parentNode: MandalaNode) => {
-    if (!element || index === 4) return;
-    if (!parentNode.isCenter) return; // 中央グリッド以外はクリック不可
-
-    // クリックされたマスの位置に基づいて新しい位置を計算
-    const row = Math.floor(index / 3);
-    const col = index % 3;
-
-    const baseX = parentNode.position?.x || 0;
-    const baseY = parentNode.position?.y || 0;
-
-    // 新しい位置を計算（グリッドをピッタリくっつける）
-    const newPosition = {
-      x: baseX + ((col - 1) * GRID_SIZE),
-      y: baseY + ((row - 1) * GRID_SIZE)
-    };
-
-    // 指定された位置に既にグリッドが存在するかチェック
-    if (isPositionOccupied(newPosition, mandalaNodes)) {
-      return;
-    }
-
-    generateMandalaChart(element.label, element.parentId, newPosition);
-  };
 
   const renderGrid = (node: MandalaNode) => {
     if (!node) return null;
@@ -67,24 +40,14 @@ export const MandalaChart: React.FC = () => {
       >
         {gridElements.map((element, index) => {
           const isCenter = index === 4;
-          const newPosition = element && !isCenter ? {
-            x: position.x + ((index % 3 - 1) * GRID_SIZE),
-            y: position.y + (Math.floor(index / 3) - 1) * GRID_SIZE
-          } : null;
-          const isOccupied = newPosition ? isPositionOccupied(newPosition, mandalaNodes) : false;
-          const canClick = node.isCenter && !isCenter && !isOccupied;
-
           return (
             <div
               key={`${node.id}-${index}`}
-              onClick={() => element && canClick && handleElementClick(element, index, node)}
               className={`
                 w-[60px] h-[60px] flex items-center justify-center text-white text-center p-2
                 ${isCenter ? 'bg-blue-800' : 'bg-gray-800'}
-                ${canClick ? 'hover:bg-gray-700 cursor-pointer' : ''}
                 transition-colors duration-200 text-xs border border-gray-900
               `}
-              title={!node.isCenter ? '展開できません' : isOccupied ? '既に展開済みです' : ''}
             >
               {element?.label || '...'}
             </div>
