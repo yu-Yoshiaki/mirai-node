@@ -5,6 +5,8 @@ import { useMandalaStore } from '../store/useMandalaStore';
 // 定数定義
 const CELL_SIZE = 90;
 const GRID_SIZE = CELL_SIZE * 9;
+const MIN_SCALE = 0.5;
+const MAX_SCALE = 2;
 
 export const MandalaChart: React.FC = () => {
   const mandalaNodes = useMandalaStore((state) => state.mandalaNodes);
@@ -14,6 +16,10 @@ export const MandalaChart: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [newTopic, setNewTopic] = useState('');
+  const [scale, setScale] = useState(1);
+  const [isDragging, setIsDragging] = useState(false);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
     if (mandalaNodes.length > 0 && !currentMandalaId) {
@@ -103,7 +109,7 @@ export const MandalaChart: React.FC = () => {
       }
     });
 
-    // 行と列の位置を計算
+    // 行と���の位置を計算
     const row = Math.floor(idx / 3);
     const col = idx % 3;
     const SUB_GRID_SIZE = CELL_SIZE * 3;
@@ -126,6 +132,35 @@ export const MandalaChart: React.FC = () => {
         {gridElements.map((element, i) => renderCell(element, i, node))}
       </div>
     );
+  };
+
+  // ズーム処理を追加
+  const handleWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    const delta = e.deltaY * -0.001;
+    const newScale = Math.min(Math.max(scale + delta, MIN_SCALE), MAX_SCALE);
+    setScale(newScale);
+  };
+
+  // ドラッグ処理を追加
+  const handleMouseDown = (e: React.MouseEvent) => {
+    setIsDragging(true);
+    setDragStart({
+      x: e.clientX - position.x,
+      y: e.clientY - position.y
+    });
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging) return;
+    setPosition({
+      x: e.clientX - dragStart.x,
+      y: e.clientY - dragStart.y
+    });
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
   };
 
   if (!currentMandala) {
@@ -160,24 +195,49 @@ export const MandalaChart: React.FC = () => {
   return (
     <div 
       ref={containerRef}
-      className="w-full h-full relative bg-black overflow-auto"
+      className="w-full h-full relative bg-black overflow-hidden"
       style={{ 
         height: 'calc(100vh - 80px)',
-        padding: '40px 0'
       }}
+      onWheel={handleWheel}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
     >
       <div 
         className="absolute inset-0 flex items-center justify-center min-h-full"
+        style={{
+          transform: `translate(${position.x}px, ${position.y}px)`,
+          cursor: isDragging ? 'grabbing' : 'grab'
+        }}
       >
         <div 
           className="relative"
           style={{ 
             width: `${GRID_SIZE}px`,
-            height: `${GRID_SIZE}px`
+            height: `${GRID_SIZE}px`,
+            transform: `scale(${scale})`,
+            transformOrigin: 'center',
+            transition: 'transform 0.1s ease-out'
           }}
         >
           {relatedNodes.map((node, idx) => renderGrid(node, idx))}
         </div>
+      </div>
+      <div className="absolute bottom-4 right-4 flex gap-2">
+        <button
+          onClick={() => setScale(Math.min(scale + 0.1, MAX_SCALE))}
+          className="p-2 bg-gray-800 rounded hover:bg-gray-700 text-white"
+        >
+          +
+        </button>
+        <button
+          onClick={() => setScale(Math.max(scale - 0.1, MIN_SCALE))}
+          className="p-2 bg-gray-800 rounded hover:bg-gray-700 text-white"
+        >
+          -
+        </button>
       </div>
     </div>
   );
