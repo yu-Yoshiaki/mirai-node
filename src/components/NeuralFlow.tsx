@@ -5,6 +5,7 @@ import { createGradients } from '../utils/d3/gradients';
 import { createSimulation } from '../utils/d3/simulation';
 import { createDragHandlers } from '../utils/d3/drag';
 import { wrapText } from '../utils/d3/text';
+import { useFlowStore } from '../store/useFlowStore';
 
 interface NeuralFlowProps {
   nodes: Node[];
@@ -14,9 +15,9 @@ interface NeuralFlowProps {
 
 export const NeuralFlow: React.FC<NeuralFlowProps> = ({ nodes, edges, onNodeClick }) => {
   const svgRef = useRef<SVGSVGElement>(null);
-  const containerRef = useRef<SVGGElement>(null);
   const zoomRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown>>();
   const transformRef = useRef<d3.ZoomTransform>();
+  const isLoading = useFlowStore(state => state.isLoading);
 
   useEffect(() => {
     if (!svgRef.current) return;
@@ -33,14 +34,13 @@ export const NeuralFlow: React.FC<NeuralFlowProps> = ({ nodes, edges, onNodeClic
       .scaleExtent([0.1, 3])
       .on('zoom', (event) => {
         transformRef.current = event.transform;
-        container.attr('transform', event.transform);
+        container.attr('transform', event.transform.toString());
       });
 
     zoomRef.current = zoom;
     svg.call(zoom);
     
-    const container = svg.append('g')
-      .attr('ref', containerRef);
+    const container = svg.append('g');
 
     const defs = svg.append('defs');
     createGradients(defs);
@@ -55,7 +55,7 @@ export const NeuralFlow: React.FC<NeuralFlowProps> = ({ nodes, edges, onNodeClic
 
     // Create ethereal connection lines with pulsing effect
     const links = container.append('g')
-      .selectAll('path')
+      .selectAll<SVGPathElement, Edge>('path')
       .data(edges)
       .join('path')
       .attr('class', 'link')
@@ -67,22 +67,22 @@ export const NeuralFlow: React.FC<NeuralFlowProps> = ({ nodes, edges, onNodeClic
     const { dragstarted, dragged, dragended } = createDragHandlers(simulation);
 
     const nodeGroups = container.append('g')
-      .selectAll('g')
+      .selectAll<SVGGElement, Node>('g')
       .data(nodes)
       .join('g')
       .attr('class', 'node')
-      .call(d3.drag<any, any>()
+      .call(d3.drag<SVGGElement, Node>()
         .on('start', dragstarted)
         .on('drag', dragged)
         .on('end', dragended));
 
     // Add text background for better readability
     nodeGroups.append('text')
-      .text((d: any) => d.data.label)
+      .text(d => d.data.label)
       .attr('text-anchor', 'middle')
-      .attr('dy', (d: any) => d.id === 'first-node' ? '-55px' : '-35px')
+      .attr('dy', d => d.id === 'first-node' ? '-55px' : '-35px')
       .attr('fill', '#E2E8F0')
-      .style('font-size', (d: any) => d.id === 'first-node' ? '18px' : '14px')
+      .style('font-size', d => d.id === 'first-node' ? '18px' : '14px')
       .style('pointer-events', 'none')
       .style('font-weight', '500')
       .style('text-shadow', '0 0 10px rgba(0,0,0,0.8), 0 0 5px rgba(0,0,0,0.9)')
@@ -90,27 +90,29 @@ export const NeuralFlow: React.FC<NeuralFlowProps> = ({ nodes, edges, onNodeClic
 
     // Add cosmic nodes with enhanced glow
     nodeGroups.append('circle')
-      .attr('r', (d: any) => d.id === 'first-node' ? 45 : 25)
-      .attr('fill', (d: any) => d.data.nodeType === 'user' ? 'url(#userGradient)' : 'url(#suggestionGradient)')
+      .attr('r', d => d.id === 'first-node' ? 45 : 25)
+      .attr('fill', d => d.data.nodeType === 'user' ? 'url(#userGradient)' : 'url(#suggestionGradient)')
       .attr('stroke', '#1A202C')
       .attr('stroke-width', 2)
       .style('cursor', 'pointer')
       .style('filter', 'url(#cosmicGlow)');
 
-    nodeGroups.on('click', (event: any, d: any) => {
+    nodeGroups.on('click', (event: MouseEvent, d: Node) => {
       event.stopPropagation();
       onNodeClick(d.id);
     });
 
     simulation.on('tick', () => {
-      links.attr('d', (d: any) => {
-        const dx = d.target.x - d.source.x;
-        const dy = d.target.y - d.source.y;
+      links.attr('d', (d: Edge) => {
+        const source = d.source as Node;
+        const target = d.target as Node;
+        const dx = target.x! - source.x!;
+        const dy = target.y! - source.y!;
         const dr = Math.sqrt(dx * dx + dy * dy) * 1.5;
-        return `M${d.source.x},${d.source.y}A${dr},${dr} 0 0,1 ${d.target.x},${d.target.y}`;
+        return `M${source.x},${source.y}A${dr},${dr} 0 0,1 ${target.x},${target.y}`;
       });
 
-      nodeGroups.attr('transform', (d: any) => `translate(${d.x},${d.y})`);
+      nodeGroups.attr('transform', (d: Node) => `translate(${d.x},${d.y})`);
     });
 
     const handleResize = () => {
@@ -148,10 +150,20 @@ export const NeuralFlow: React.FC<NeuralFlowProps> = ({ nodes, edges, onNodeClic
   }, [nodes, edges, onNodeClick]);
 
   return (
-    <svg
-      ref={svgRef}
-      className="w-full h-screen"
-      style={{ background: '#000000' }}
-    />
+    <div className="relative w-full h-screen">
+      <svg
+        ref={svgRef}
+        className="w-full h-screen"
+        style={{ background: '#000000' }}
+      />
+      {isLoading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="flex flex-col items-center space-y-4">
+            <div className="w-12 h-12 border-4 border-t-blue-500 border-blue-200 rounded-full animate-spin"></div>
+            <p className="text-white text-lg">アイデアを生成中...</p>
+          </div>
+        </div>
+      )}
+    </div>
   );
 };

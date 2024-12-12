@@ -42,6 +42,8 @@ type MandalaState = MandalaStoredState & {
     position?: Position
   ) => void;
   initializeMandala: () => void;
+  addNode: (node: MandalaNode) => void;
+  updateNode: (node: MandalaNode) => void;
 };
 
 export const useMandalaStore = create<MandalaState>((set) => ({
@@ -108,4 +110,16 @@ export const useMandalaStore = create<MandalaState>((set) => ({
       return newState;
     });
   },
+
+  addNode: (node) =>
+    set((state) => ({
+      mandalaNodes: [...state.mandalaNodes, node],
+    })),
+
+  updateNode: (updatedNode) =>
+    set((state) => ({
+      mandalaNodes: state.mandalaNodes.map((node) =>
+        node.id === updatedNode.id ? updatedNode : node
+      ),
+    })),
 }));

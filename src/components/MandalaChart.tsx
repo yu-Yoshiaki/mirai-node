@@ -1,6 +1,7 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { MandalaNode } from '../types';
 import { useMandalaStore } from '../store/useMandalaStore';
+import { generateMandalaContent } from '../utils/mandalaOpenai';
 
 // 定数定義
 const CELL_SIZE = 60; // 1マスのサイズを小さく調整
@@ -11,6 +12,10 @@ export const MandalaChart: React.FC = () => {
   const currentMandalaId = useMandalaStore((state) => state.currentMandalaId);
   const setCurrentMandalaId = useMandalaStore((state) => state.setCurrentMandalaId);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const addNode = useMandalaStore((state) => state.addNode);
+  const updateNode = useMandalaStore((state) => state.updateNode);
+  const [newTopic, setNewTopic] = useState('');
 
   // 最初のマンダラチャートが表示されたときに自動的に選択
   useEffect(() => {
@@ -26,27 +31,108 @@ export const MandalaChart: React.FC = () => {
     node.isCenter && node.id === currentMandalaId
   );
 
-  if (!currentMandala) {
-    return (
-      <div className="w-full h-full flex items-center justify-center text-white">
-        <p>目標を入力してください</p>
-      </div>
-    );
-  }
+  const handleGenerateTopics = async () => {
+    if (!currentMandala) return;
+    
+    setIsLoading(true);
+    try {
+      const topics = await generateMandalaContent(currentMandala.label);
+      
+      // 既存の子ノードを更新または新規作成
+      topics.forEach((topic: string, index: number) => {
+        const existingChild = currentMandala.children?.[index];
+        if (existingChild) {
+          // 既存のノードを更新
+          updateNode({
+            ...existingChild,
+            label: topic
+          });
+        } else {
+          // 新規ノードを作成
+          addNode({
+            id: `${currentMandala.id}-${index}`,
+            label: topic,
+            parentId: currentMandala.id,
+            isCenter: false,
+            children: [],
+            position: { x: 0, y: 0 }
+          });
+        }
+      });
+    } catch (error) {
+      console.error('Failed to generate topics:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-  const relatedNodes = mandalaNodes.filter(node => 
-    node.id === currentMandalaId || node.parentId === currentMandalaId
-  );
+  const handleCreateNewMandala = async () => {
+    if (!newTopic || isLoading) return;
+    
+    setIsLoading(true);
+    try {
+      const topics = await generateMandalaContent(newTopic);
+      
+      // 中心��ードを作成
+      const newNodeId = `mandala-${Date.now()}`;
+      const centerNode = {
+        id: newNodeId,
+        label: newTopic,
+        parentId: undefined,
+        isCenter: true,
+        children: [],
+        position: { x: 0, y: 0 }
+      };
+      
+      addNode(centerNode);
+      setCurrentMandalaId(newNodeId);
+
+      // サブトピックを追加
+      topics.forEach((topic: string, index: number) => {
+        addNode({
+          id: `${newNodeId}-${index}`,
+          label: topic,
+          parentId: newNodeId,
+          isCenter: false,
+          children: [],
+          position: { x: 0, y: 0 }
+        });
+      });
+
+      setNewTopic(''); // 入力をクリア
+    } catch (error) {
+      console.error('Failed to generate mandala:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // relatedNodesの取得を修正
+  const relatedNodes = useMemo(() => {
+    if (!currentMandala) return [];
+    
+    // 中心ノードを取得
+    const centerNode = currentMandala;
+    
+    // 子ノード（8つの要素）を取得
+    const childNodes = mandalaNodes.filter(node => node.parentId === centerNode.id);
+    
+    // 中心ノードと子ノードを結合
+    return [centerNode, ...childNodes];
+  }, [currentMandala, mandalaNodes]);
 
   const renderGrid = (node: MandalaNode) => {
     if (!node) return null;
+
+    // 子ノードを取得（parentIdで紐付いているノードを探す）
+    const childNodes = mandalaNodes.filter(n => n.parentId === node.id);
 
     const gridElements = Array.from({ length: 9 }, (_, index) => {
       if (index === 4) {
         return node;
       } else {
         const childIndex = index > 4 ? index - 1 : index;
-        return node.children?.[childIndex];
+        return childNodes[childIndex];
       }
     });
 
@@ -85,12 +171,50 @@ export const MandalaChart: React.FC = () => {
     );
   };
 
+  if (!currentMandala) {
+    return (
+      <div className="w-full h-full flex flex-col items-center justify-center text-white gap-4">
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={newTopic}
+            onChange={(e) => setNewTopic(e.target.value)}
+            placeholder="新しい目標を入力"
+            className="px-4 py-2 bg-gray-800 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                handleCreateNewMandala();
+              }
+            }}
+          />
+          <button
+            onClick={handleCreateNewMandala}
+            disabled={isLoading || !newTopic}
+            className="px-4 py-2 bg-blue-600 rounded hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed"
+          >
+            {isLoading ? '生成中...' : '作成'}
+          </button>
+        </div>
+        <p className="text-gray-400">または既存のマンダラチャートを選択してください</p>
+      </div>
+    );
+  }
+
   return (
     <div 
       ref={containerRef}
       className="w-full h-full relative bg-black overflow-auto"
       style={{ height: 'calc(100vh - 80px)' }}
     >
+      <div className="absolute top-4 right-4 z-10">
+        <button 
+          onClick={handleGenerateTopics}
+          disabled={isLoading || !currentMandala}
+          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400"
+        >
+          {isLoading ? '生成中...' : 'AIでアイデア生成'}
+        </button>
+      </div>
       <div 
         className="absolute inset-0 flex items-center justify-center"
       >

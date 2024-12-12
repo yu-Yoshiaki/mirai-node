@@ -60,11 +60,12 @@ type FlowStoreState = {
   selectedNodeId: string | null;
   viewMode: ViewMode;
   initialized: boolean;
+  isLoading: boolean;
   setViewMode: (mode: ViewMode) => void;
   setSelectedNodeId: (id: string | null) => void;
   initializeFlow: () => void;
-  addSuggestionFromNode: (sourceNodeId: string) => void;
-  addNode: (label: string) => void;
+  addSuggestionFromNode: (sourceNodeId: string) => Promise<void>;
+  addNode: (label: string) => Promise<void>;
 };
 
 export const useFlowStore = create<FlowStoreState>((set, get) => ({
@@ -73,6 +74,7 @@ export const useFlowStore = create<FlowStoreState>((set, get) => ({
   selectedNodeId: null,
   viewMode: "neural",
   initialized: false,
+  isLoading: false,
 
   setViewMode: (mode: ViewMode) => {
     set({ viewMode: mode });
@@ -98,7 +100,6 @@ export const useFlowStore = create<FlowStoreState>((set, get) => ({
     const savedData = loadFromLocalStorage();
     if (savedData) {
       console.log("Found saved data:", savedData);
-      // 保存されているデータがある場合は、それを使用
       set({
         nodes: savedData.nodes,
         edges: savedData.edges,
@@ -112,7 +113,6 @@ export const useFlowStore = create<FlowStoreState>((set, get) => ({
       });
     } else {
       console.log("No saved data found, using initial state");
-      // 保存されているデータがない場合は、初期状態を設定
       const initialState = {
         nodes: [initialNode],
         edges: [],
@@ -123,13 +123,18 @@ export const useFlowStore = create<FlowStoreState>((set, get) => ({
     }
   },
 
-  addSuggestionFromNode: (sourceNodeId: string) => {
-    set((state) => {
+  addSuggestionFromNode: async (sourceNodeId: string) => {
+    set({ isLoading: true });
+    try {
+      const state = get();
       const sourceNode = state.nodes.find((node) => node.id === sourceNodeId);
-      if (!sourceNode) return state;
+      if (!sourceNode) {
+        set({ isLoading: false });
+        return;
+      }
 
       const timestamp = Date.now();
-      const suggestions = generateSuggestions(sourceNode.data.label);
+      const suggestions = await generateSuggestions(sourceNode.data.label);
 
       const suggestionNodes: Node[] = [];
       const suggestionEdges: Edge[] = [];
@@ -157,34 +162,40 @@ export const useFlowStore = create<FlowStoreState>((set, get) => ({
       });
 
       const newState = {
-        ...state,
         nodes: [...state.nodes, ...suggestionNodes],
         edges: [...state.edges, ...suggestionEdges],
       };
 
+      set({ ...newState, isLoading: false });
       saveToLocalStorage({
         nodes: newState.nodes,
         edges: newState.edges,
-        viewMode: newState.viewMode,
+        viewMode: state.viewMode,
       });
-      return newState;
-    });
+    } catch (error) {
+      console.error("Error generating suggestions:", error);
+      set({ isLoading: false });
+    }
   },
 
-  addNode: (label: string) => {
+  addNode: async (label: string) => {
     const state = get();
     if (state.viewMode === "mandala") {
       useMandalaStore.getState().generateMandalaChart(label);
       return;
     }
 
-    set((state) => {
+    set({ isLoading: true });
+    try {
       const timestamp = Date.now();
       const userNodeId = `node-${timestamp}`;
       const sourceNodeId = state.selectedNodeId || FIRST_NODE_ID;
       const sourceNode = state.nodes.find((node) => node.id === sourceNodeId);
 
-      if (!sourceNode) return state;
+      if (!sourceNode) {
+        set({ isLoading: false });
+        return;
+      }
 
       const position = calculateSuggestionPosition(
         sourceNode.position.x,
@@ -203,7 +214,7 @@ export const useFlowStore = create<FlowStoreState>((set, get) => ({
         target: userNodeId,
       };
 
-      const suggestions = generateSuggestions(label);
+      const suggestions = await generateSuggestions(label);
       const suggestionNodes: Node[] = [];
       const suggestionEdges: Edge[] = [];
 
@@ -235,17 +246,19 @@ export const useFlowStore = create<FlowStoreState>((set, get) => ({
       });
 
       const newState = {
-        ...state,
         nodes: [...state.nodes, userNode, ...suggestionNodes],
         edges: [...state.edges, userEdge, ...suggestionEdges],
       };
 
+      set({ ...newState, isLoading: false });
       saveToLocalStorage({
         nodes: newState.nodes,
         edges: newState.edges,
-        viewMode: newState.viewMode,
+        viewMode: state.viewMode,
       });
-      return newState;
-    });
+    } catch (error) {
+      console.error("Error adding node:", error);
+      set({ isLoading: false });
+    }
   },
 }));
