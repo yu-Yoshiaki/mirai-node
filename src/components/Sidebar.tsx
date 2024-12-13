@@ -19,10 +19,10 @@ export const Sidebar: React.FC = () => {
 
   return (
     <div className="flex">
-      <div className="w-64 h-screen bg-gray-800 text-white p-4">
+      <div className="w-64 h-screen bg-gray-800 text-white p-4 flex flex-col">
         <h2 className="text-xl font-bold mb-4">表示形式</h2>
         <div className="space-y-2">
-          <button
+          {/* <button
             className={`w-full p-2 rounded ${
               viewMode === 'neural'
                 ? 'bg-blue-600 text-white'
@@ -31,7 +31,7 @@ export const Sidebar: React.FC = () => {
             onClick={() => handleModeChange('neural')}
           >
             ニューロン型マインドマップ
-          </button>
+          </button> */}
           <button
             className={`w-full p-2 rounded ${
               viewMode === 'mandala'
@@ -54,6 +54,9 @@ export const Sidebar: React.FC = () => {
               目標メッセージを投げると、必要な要素を生成し、埋めてくれます。
             </p>
           )}
+        </div>
+        <div className="mt-auto pt-4 text-sm text-gray-400 border-t border-gray-700">
+          <p>※ データはブラウザのローカルストレージに保存されます</p>
         </div>
       </div>
 
