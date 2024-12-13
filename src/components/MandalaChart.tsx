@@ -193,51 +193,55 @@ export const MandalaChart: React.FC = () => {
   }
 
   return (
-    <div 
-      ref={containerRef}
-      className="w-full h-full relative bg-black overflow-hidden"
-      style={{ 
-        height: 'calc(100vh - 80px)',
-      }}
-      onWheel={handleWheel}
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
-    >
-      <div 
-        className="absolute inset-0 flex items-center justify-center min-h-full"
-        style={{
-          transform: `translate(${position.x}px, ${position.y}px)`,
-          cursor: isDragging ? 'grabbing' : 'grab'
-        }}
-      >
+    <div className="flex">
+      <div className="flex-1 p-4">
         <div 
-          className="relative"
+          ref={containerRef}
+          className="w-full h-full relative bg-black overflow-hidden"
           style={{ 
-            width: `${GRID_SIZE}px`,
-            height: `${GRID_SIZE}px`,
-            transform: `scale(${scale})`,
-            transformOrigin: 'center',
-            transition: 'transform 0.1s ease-out'
+            height: 'calc(100vh - 80px)',
           }}
+          onWheel={handleWheel}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
         >
-          {relatedNodes.map((node, idx) => renderGrid(node, idx))}
+          <div 
+            className="absolute inset-0 flex items-center justify-center min-h-full"
+            style={{
+              transform: `translate(${position.x}px, ${position.y}px)`,
+              cursor: isDragging ? 'grabbing' : 'grab'
+            }}
+          >
+            <div 
+              className="relative"
+              style={{ 
+                width: `${GRID_SIZE}px`,
+                height: `${GRID_SIZE}px`,
+                transform: `scale(${scale})`,
+                transformOrigin: 'center',
+                transition: 'transform 0.1s ease-out'
+              }}
+            >
+              {relatedNodes.map((node, idx) => renderGrid(node, idx))}
+            </div>
+          </div>
+          <div className="absolute bottom-4 right-4 flex gap-2">
+            <button
+              onClick={() => setScale(Math.min(scale + 0.1, MAX_SCALE))}
+              className="p-2 bg-gray-800 rounded hover:bg-gray-700 text-white"
+            >
+              +
+            </button>
+            <button
+              onClick={() => setScale(Math.max(scale - 0.1, MIN_SCALE))}
+              className="p-2 bg-gray-800 rounded hover:bg-gray-700 text-white"
+            >
+              -
+            </button>
+          </div>
         </div>
-      </div>
-      <div className="absolute bottom-4 right-4 flex gap-2">
-        <button
-          onClick={() => setScale(Math.min(scale + 0.1, MAX_SCALE))}
-          className="p-2 bg-gray-800 rounded hover:bg-gray-700 text-white"
-        >
-          +
-        </button>
-        <button
-          onClick={() => setScale(Math.max(scale - 0.1, MIN_SCALE))}
-          className="p-2 bg-gray-800 rounded hover:bg-gray-700 text-white"
-        >
-          -
-        </button>
       </div>
     </div>
   );
